@@ -1,69 +1,81 @@
+"""Small, dense bag-of-words implementation for teaching and comparison."""
+import re
 import numpy as np
-from collections import defaultdict
+
+TOKEN_PATTERN = re.compile(r"(?u)\b\w\w+\b")
+
+def tokenize(text):
+    """Match CountVectorizer's default lowercase, two-character word tokens."""
+    return TOKEN_PATTERN.findall(text.lower())
 
 class MultinomialNBScratch:
-    """Multinomial Naive Bayes for bag-of-words with Laplace smoothing."""
-    def __init__(self, alpha=1.0):
-        self.alpha = alpha
-        self.classes_ = None
-        self.class_log_prior_ = None
-        self.feature_log_prob_ = None
-        self.vocab_ = {}
-        self.inv_vocab_ = []
+    """Multinomial Naive Bayes with additive smoothing and fitted vocabulary."""
 
-    def _build_vocab(self, texts):
-        vocab = {}
-        for txt in texts:
-            for tok in txt.split():
-                if tok not in vocab:
-                    vocab[tok] = len(vocab)
-        self.vocab_ = vocab
-        self.inv_vocab_ = [None]*len(vocab)
-        for t, i in vocab.items():
-            self.inv_vocab_[i] = t
+    def __init__(self, alpha=1.0):
+        if not np.isfinite(alpha) or alpha <= 0:
+            raise ValueError('alpha must be finite and strictly positive.')
+        self.alpha = float(alpha)
+        self.classes_ = None
+
+    @staticmethod
+    def _texts(texts):
+        if isinstance(texts, str):
+            raise ValueError('Pass a sequence of documents, not one string.')
+        texts = list(texts)
+        if not all(isinstance(text, str) for text in texts):
+            raise ValueError('Every document must be a string.')
+        return texts
 
     def _vectorize(self, texts):
-        X = np.zeros((len(texts), len(self.vocab_)), dtype=np.int64)
-        for i, txt in enumerate(texts):
-            for tok in txt.split():
-                j = self.vocab_.get(tok)
-                if j is not None:
-                    X[i, j] += 1
-        return X
+        counts = np.zeros((len(texts), len(self.vocab_)), dtype=np.float64)
+        for row, text in enumerate(texts):
+            for token in tokenize(text):
+                column = self.vocab_.get(token)
+                if column is not None:
+                    counts[row, column] += 1
+        return counts
 
     def fit(self, texts, y):
-        # build vocab then count
-        self._build_vocab(texts)
-        X = self._vectorize(texts)
+        texts = self._texts(texts)
         y = np.asarray(y)
-        classes = np.unique(y)
-        self.classes_ = classes
-        n_classes = len(classes)
-        n_features = X.shape[1]
-
-        class_count = np.zeros(n_classes, dtype=np.float64)
-        feature_count = np.zeros((n_classes, n_features), dtype=np.float64)
-
-        for idx, c in enumerate(classes):
-            Xc = X[y == c]
-            class_count[idx] = Xc.shape[0]
-            feature_count[idx] = Xc.sum(axis=0)
-
-        # priors
-        self.class_log_prior_ = np.log(class_count / class_count.sum())
-
-        # likelihood with Laplace smoothing
-        smoothed_fc = feature_count + self.alpha
-        smoothed_cc = smoothed_fc.sum(axis=1, keepdims=True)
-        self.feature_log_prob_ = np.log(smoothed_fc) - np.log(smoothed_cc)
+        if not texts or y.ndim != 1 or len(y) != len(texts):
+            raise ValueError('Provide equally sized, nonempty documents and labels.')
+        if any(label is None or (isinstance(label, (float, np.floating))
+                                and not np.isfinite(label)) for label in y):
+            raise ValueError('Labels must not be missing or infinite.')
+        vocabulary = sorted({token for text in texts for token in tokenize(text)})
+        if not vocabulary:
+            raise ValueError('Training documents contain no usable tokens.')
+        self.vocab_ = {word: index for index, word in enumerate(vocabulary)}
+        self.inv_vocab_ = vocabulary
+        counts = self._vectorize(texts)
+        self.classes_, inverse = np.unique(y, return_inverse=True)
+        self.class_count_ = np.bincount(inverse).astype(float)
+        self.feature_count_ = np.stack([
+            counts[inverse == index].sum(axis=0)
+            for index in range(len(self.classes_))
+        ])
+        self.class_log_prior_ = np.log(self.class_count_ / len(y))
+        smoothed = self.feature_count_ + self.alpha
+        self.feature_log_prob_ = np.log(smoothed) - np.log(smoothed.sum(axis=1, keepdims=True))
         return self
 
+    def _joint_log_likelihood(self, texts):
+        if self.classes_ is None:
+            raise RuntimeError('Call fit before prediction.')
+        texts = self._texts(texts)
+        return self._vectorize(texts) @ self.feature_log_prob_.T + self.class_log_prior_
+
     def predict_log_proba(self, texts):
-        X = self._vectorize(texts)
-        # log P(y) + X log P(x|y)
-        jll = self.class_log_prior_ + X @ self.feature_log_prob_.T
-        return jll
+        joint = self._joint_log_likelihood(texts)
+        # Stable log-sum-exp normalization; each row then sums to one in probability space.
+        maximum = joint.max(axis=1, keepdims=True)
+        log_normalizer = maximum + np.log(np.exp(joint - maximum).sum(axis=1, keepdims=True))
+        return joint - log_normalizer
+
+    def predict_proba(self, texts):
+        return np.exp(self.predict_log_proba(texts))
 
     def predict(self, texts):
-        jll = self.predict_log_proba(texts)
-        return self.classes_[np.argmax(jll, axis=1)]
+        joint = self._joint_log_likelihood(texts)
+        return self.classes_[np.argmax(joint, axis=1)]

@@ -1,41 +1,56 @@
-# Naive Bayes for Sentiment Classification (Portfolio Sample)
+# Multinomial Naive Bayes for Text Classification
 
-This repository demonstrates **text classification** using **Naive Bayes**.
-It contains both a clean `scikit-learn` pipeline and a concise **from-scratch**
-implementation of **Multinomial Naive Bayes** with Laplace smoothing.
+A NumPy implementation of multinomial Naive Bayes, compared numerically with a
+scikit-learn reference using the same tokenization and smoothing.
 
-## What this shows
-- End-to-end **NLP workflow**: tokenization → vectorization → model training → evaluation
-- **From-scratch Multinomial NB** (transparent math; Laplace smoothing)
-- `scikit-learn` **Pipeline** baseline for comparison
-- Works with a tiny built-in toy dataset *or* any CSV with columns `text,label`
+## What the example demonstrates
 
-## Structure
-```
-.
-├── notebooks
-│   └── nb_sentiment.ipynb         # End-to-end demo (scratch + sklearn)
-├── src
-│   └── nb_scratch.py              # Minimal Multinomial NB from scratch
-├── data
-│   └── sample_tiny.csv            # Tiny demo dataset
-├── README.md
-├── requirements.txt
-├── LICENSE
-└── .gitignore
-```
+- Lowercase word tokens of at least two characters, matching CountVectorizer's default behavior.
+- A vocabulary learned from training documents only.
+- Additive smoothing and empirical class priors.
+- Numerically stable, normalized log probabilities.
+- An explicit check that the scratch and reference probabilities agree.
 
-## Quickstart
+The included dataset contains **six hand-written sentences**. The fixed split uses four for training
+and two for testing; both implementations classify one of those two test examples correctly.
+This is a small implementation check, not evidence of useful sentiment-model accuracy.
+
+## Files and limitations
+
+| Path | Purpose |
+|---|---|
+| [notebooks/nb_sentiment.ipynb](notebooks/nb_sentiment.ipynb) | Executed comparison with real outputs |
+| [src/nb_scratch.py](src/nb_scratch.py) | Vocabulary, counts, smoothing and prediction |
+| [data/sample_tiny.csv](data/sample_tiny.csv) | Six illustrative `text,label` rows |
+| [tests/test_nb.py](tests/test_nb.py) | Reference agreement, probability normalization and invalid-input checks |
+
+Unknown words are ignored; a document with no known words receives the learned priors.
+The dense count matrix is intended for small examples, not large corpora. For another CSV,
+update the notebook's data path and provide nonmissing text and labels, with enough examples
+per class to support the stratified split. Meaningful evaluation needs a substantially larger
+dataset and independent test observations.
+
+## Run locally
+
+Use Python 3.12 and a separate environment for this project. From the repository folder:
+
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux/Mac: source .venv/bin/activate
-pip install -r requirements.txt
+```
+
+Activate with `.venv\Scripts\activate` in Windows Command Prompt or
+`source .venv/bin/activate` on Linux/macOS, then run:
+
+```bash
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
 jupyter notebook notebooks/nb_sentiment.ipynb
 ```
 
-### Using your own data
-Provide a CSV with columns `text,label` (labels like `pos`/`neg` or `1`/`0`). In the notebook, set the file path and run all cells.
+The notebook finds the repository from either its root folder or `notebooks/`.
+The saved outputs come from CPU execution with the included data; see
+[validation](docs/VALIDATION.md) for the checks and limits.
 
 ## License
-MIT
+
+MIT — see [LICENSE](LICENSE).
