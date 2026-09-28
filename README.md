@@ -51,6 +51,10 @@ The notebook finds the repository from either its root folder or `notebooks/`.
 The saved outputs come from CPU execution with the included data; see
 [validation](docs/VALIDATION.md) for the checks and limits.
 
+## Development and learning goal
+
+The implementation and notebook were revised and checked with AI coding assistance. The useful comparison is numerical agreement with scikit-learn under the same vocabulary and smoothing, rather than a performance claim based on two test sentences. Token counts, class priors, and log-probability calculations are kept in the source for inspection.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
