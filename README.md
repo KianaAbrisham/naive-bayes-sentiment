@@ -1,5 +1,7 @@
 # Multinomial Naive Bayes for Text Classification
 
+[![Checks](https://github.com/KianaAbrisham/naive-bayes-sentiment/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/KianaAbrisham/naive-bayes-sentiment/actions/workflows/checks.yml)
+
 A NumPy implementation of multinomial Naive Bayes, compared numerically with a
 scikit-learn reference using the same tokenization and smoothing.
 
@@ -51,9 +53,7 @@ The notebook finds the repository from either its root folder or `notebooks/`.
 The saved outputs come from CPU execution with the included data; see
 [validation](docs/VALIDATION.md) for the checks and limits.
 
-## Development and learning goal
-
-The implementation and notebook were revised and checked with AI coding assistance. The useful comparison is numerical agreement with scikit-learn under the same vocabulary and smoothing, rather than a performance claim based on two test sentences. Token counts, class priors, and log-probability calculations are kept in the source for inspection.
+[Development notes](https://github.com/KianaAbrisham/KianaAbrisham/blob/main/docs/DEVELOPMENT.md)
 
 ## License
 
